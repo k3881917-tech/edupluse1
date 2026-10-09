@@ -182,6 +182,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .checkrow.on .check{background:var(--good);border-color:var(--good)}
 .checkrow.on .check svg{stroke-dashoffset:0}
 .fine{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:1.45}
+.steps li::marker{color:var(--accent);font-family:var(--mono);font-weight:700}
+.kbd{font-family:var(--mono);font-size:11.5px;padding:1px 6px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap}
+.field textarea{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--fg);font:13px/1.4 var(--mono);width:100%;box-sizing:border-box;resize:vertical;min-height:72px}
 .skel{height:76px;border-radius:var(--r);background:linear-gradient(90deg,var(--surface) 25%,var(--surface-2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
 
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -694,11 +698,13 @@ function openSettings(){
     <div class="sub">Дневник.ру подключён · обновлено ${ago(me.last_sync)}</div>
     <button class="primary" id="syncNow">Обновить сейчас</button>
     <div class="toggle"><div><div style="font-weight:700">Уведомления в Telegram</div><div class="sub">Новые оценки и домашка на завтра</div></div><button class="switch ${me.notify ? 'on' : ''}" id="notifySw" role="switch" aria-checked="${me.notify}" aria-label="Уведомления"></button></div>
-    <div class="fine">${me.remembered ? 'Пароль хранится на сервере в зашифрованном виде, чтобы входить заново, когда сессия Дневник.ру истекает.' : 'Пароль не сохранён: когда сессия Дневник.ру истечёт, нужно будет войти снова.'}</div>
+    <div class="fine">Вход по ключу Дневник.ру. Когда ключ устареет, бот напишет — вставишь новый, данные и отметки сохранятся.</div>
+    <button class="ghostbtn" id="newKey">Обновить ключ входа</button>
     <button class="ghostbtn danger" id="unlink">Отключить Дневник.ру</button>
     <div class="err" id="set-err" hidden></div>`);
   $('#sheet').onclick = async e => {
     if (e.target.closest('#syncNow')) return refresh(e.target.closest('#syncNow'));
+    if (e.target.closest('#newKey')) return showLogin(true);
     const sw = e.target.closest('#notifySw');
     if (sw){
       me.notify = !me.notify; sw.classList.toggle('on', me.notify); sw.setAttribute('aria-checked', me.notify); haptic('select');
@@ -726,34 +732,41 @@ async function refresh(btn){
 }
 
 /* ---------- Login ---------- */
-function showLogin(){
-  $('#tabs').classList.add('hide'); $('#settingsBtn').hidden = true;
-  let remember = true;
+function showLogin(update){
+  closeSheet();
+  $('#tabs').classList.add('hide'); $('#settingsBtn').hidden = true; $('#banner').hidden = true;
   $('#views').innerHTML = `<div class="screen"><div class="login-card">
     <div class="hero-mark">Edu<b>Plus</b></div>
-    <div class="sub" style="font-size:14px">Расписание, домашка и оценки из Дневник.ру — в одном красивом приложении.</div>
-    <form id="loginForm" novalidate>
-      <div class="field"><label for="lg">Логин Дневник.ру</label><input id="lg" autocomplete="username" autocapitalize="off" spellcheck="false" required></div>
-      <div class="field"><label for="pw">Пароль</label><input id="pw" type="password" autocomplete="current-password" required></div>
-      <button type="button" class="checkrow on" id="rem" aria-pressed="true"><span class="check"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Запомнить пароль (в зашифрованном виде), чтобы не входить заново, когда сессия истечёт</span></button>
-      <button class="primary" type="submit" id="lgBtn">Войти</button>
-      <div class="err" id="lgErr" hidden></div>
+    <div class="sub" style="font-size:14px">${update ? 'Ключ входа устарел — вставь новый, и всё снова заработает.' : 'Расписание, домашка и оценки из Дневник.ру — в одном красивом приложении.'}</div>
+    <div class="section-label">Как получить ключ входа · на компьютере</div>
+    <ol class="steps">
+      <li>Открой <b>dnevnik.ru</b> в браузере (Chrome, Comet, Яндекс) и войди через Госуслуги, как обычно.</li>
+      <li>Нажми <span class="kbd">Cmd ⌥ I</span> (на Windows <span class="kbd">F12</span>) и открой вкладку <b>Network</b> («Сеть»).</li>
+      <li>Обнови страницу: <span class="kbd">Cmd R</span> или <span class="kbd">F5</span>.</li>
+      <li>Нажми на самую первую строку в списке, справа открой <b>Headers</b> и пролистай до <b>Request Headers</b>.</li>
+      <li>Найди строку <b>cookie</b>, нажми на её значение правой кнопкой → <b>Copy value</b>.</li>
+      <li>Вставь сюда — или просто отправь боту сообщением, он сразу его удалит.</li>
+    </ol>
+    <form id="ckForm" novalidate>
+      <div class="field"><label for="ck">Ключ входа (строка cookie)</label><textarea id="ck" rows="3" autocapitalize="off" spellcheck="false" placeholder="_ym_uid=…; DnevnikAuth_a=…; …"></textarea></div>
+      <button class="primary" type="submit" id="ckBtn">Подключить</button>
+      <div class="err" id="ckErr" hidden></div>
     </form>
-    <div class="fine">Пароль уходит только на сервер EduPlus и оттуда — на login.dnevnik.ru. Вход через Госуслуги пока не поддерживается: задай логин и пароль в настройках Дневник.ру.</div>
+    <div class="fine">Пароль от Госуслуг EduPlus не нужен и не видит его. Ключ хранится на сервере в зашифрованном виде и даёт доступ только к Дневник.ру. Никому его не пересылай. Когда Дневник.ру тебя разлогинит, бот напишет — тогда ключ нужно будет вставить заново.</div>
+    ${update ? '<button class="ghostbtn" id="ckCancel">Не сейчас</button>' : ''}
   </div></div>`;
-  $('#rem').onclick = () => { remember = !remember; $('#rem').classList.toggle('on', remember); $('#rem').setAttribute('aria-pressed', remember) };
-  $('#loginForm').onsubmit = async e => {
+  if (update) $('#ckCancel').onclick = () => location.reload();
+  $('#ckForm').onsubmit = async e => {
     e.preventDefault();
-    const login = $('#lg').value.trim(), password = $('#pw').value;
-    const err = $('#lgErr'), btn = $('#lgBtn');
-    if (!login || !password){ err.textContent = 'Введи логин и пароль.'; err.hidden = false; return }
-    err.hidden = true; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Вхожу в Дневник.ру…';
-    const slow = setTimeout(() => { btn.innerHTML = '<span class="spinner"></span>Загружаю расписание и оценки…' }, 8000);
+    const cookie = $('#ck').value.trim(), err = $('#ckErr'), btn = $('#ckBtn');
+    if (cookie.length < 30 || !cookie.includes('=')){ err.textContent = 'Вставь значение строки cookie целиком — оно длинное, с символами «=» и «;».'; err.hidden = false; return }
+    err.hidden = true; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Проверяю ключ…';
+    const slow = setTimeout(() => { btn.innerHTML = '<span class="spinner"></span>Загружаю расписание и оценки…' }, 3000);
     try {
-      S.me = await api('/api/link', { method:'POST', body:{ login, password, remember } });
+      S.me = await api('/api/link-cookie', { method:'POST', body:{ cookie } });
       clearTimeout(slow); haptic('medium'); location.reload();
     } catch(ex){
-      clearTimeout(slow); btn.disabled = false; btn.textContent = 'Войти';
+      clearTimeout(slow); btn.disabled = false; btn.textContent = 'Подключить';
       err.textContent = ex.message; err.hidden = false; haptic('heavy');
     }
   };
@@ -778,8 +791,9 @@ function showBanner(){
   const b = $('#banner');
   if (MODE === 'api' && S.me?.sync_error){
     b.className = 'banner'; b.hidden = false;
-    b.innerHTML = `<span>${esc(S.me.sync_error)}</span><button id="bannerBtn">${/войди/i.test(S.me.sync_error) ? 'Войти' : 'Повторить'}</button>`;
-    $('#bannerBtn').onclick = () => /войди/i.test(S.me.sync_error) ? api('/api/unlink', { method:'POST' }).then(() => location.reload()) : refresh();
+    const expired = /устарел|истекл|войди/i.test(S.me.sync_error);
+    b.innerHTML = `<span>${esc(S.me.sync_error)}</span><button id="bannerBtn">${expired ? 'Обновить ключ' : 'Повторить'}</button>`;
+    $('#bannerBtn').onclick = () => expired ? showLogin(true) : refresh();
   } else b.hidden = true;
 }
 

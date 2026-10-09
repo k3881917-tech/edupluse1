@@ -104,6 +104,36 @@ export async function login(username, password) {
   return { jar: jar.toJSON(), ...ids };
 }
 
+/** Разбирает строку Cookie, скопированную из браузера, в элементы банки. */
+export function parseCookieString(text) {
+  const s = String(text || '').replace(/^\s*cookie\s*:\s*/i, '').replace(/[\r\n]+/g, ' ').trim();
+  const list = [];
+  for (const part of s.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 1) continue;
+    const name = part.slice(0, eq).trim(), value = part.slice(eq + 1).trim();
+    if (!/^[\w.\-!#$%&'*+^`|~]+$/.test(name)) continue;
+    list.push({ name, value, domain: 'dnevnik.ru', hostOnly: false, expires: null });
+  }
+  return list;
+}
+
+/** Похоже ли сообщение на скопированную строку Cookie (для бота). */
+export const looksLikeCookie = text => !String(text).startsWith('/') && String(text).length > 40 && parseCookieString(text).length >= 2;
+
+/** Вход по «ключу» — строке Cookie из браузера, где уже выполнен вход (в т.ч. через Госуслуги). */
+export async function fromCookie(text) {
+  const list = parseCookieString(text);
+  if (list.length < 2) throw new DnevnikError('Это не похоже на ключ входа. Скопируй значение строки cookie целиком.');
+  const jar = new Jar(list);
+  const { res, url } = await request(jar, 'https://dnevnik.ru/marks');
+  const page = await res.text();
+  if (isLoginPage(url, page)) throw new DnevnikError('Ключ не подошёл: Дневник.ру просит войти заново. Обнови страницу дневника, войди и скопируй ключ ещё раз.');
+  const ids = findIds(page);
+  if (!ids) throw new DnevnikError('Ключ подошёл, но не удалось найти ученика и школу. Пока поддерживаются только аккаунты учеников.');
+  return { jar: jar.toJSON(), ...ids };
+}
+
 const ts = date => Math.floor(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 1000);
 
 /** Сырые данные дневника за период [start, end] (строки YYYY-MM-DD). */

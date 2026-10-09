@@ -28,7 +28,7 @@ export default async () => {
       if (fresh.length && u.notify) await send(u.id, marksText(fresh), openKb('Посмотреть'));
     } catch (e) {
       if (e instanceof SessionExpired && !hadError && u.notify) {
-        await send(u.id, 'Сессия Дневник.ру истекла. Открой EduPlus и войди заново.', openKb());
+        await send(u.id, 'Ключ входа в Дневник.ру устарел, поэтому новые оценки не загружаются.\n\nЗайди на dnevnik.ru, скопируй ключ так же, как в первый раз, и пришли его сюда сообщением (или вставь в EduPlus).', openKb('Открыть EduPlus'));
       } else console.warn('sync', id, e.message);
     }
     try {

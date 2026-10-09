@@ -32,6 +32,17 @@ export async function link(u, login, password, remember) {
   await syncUser(u, ...defaultWindow(), { first: true });
 }
 
+/** Подключение по ключу входа (строка Cookie). Пароль не нужен и не хранится. */
+export async function linkCookie(u, cookie) {
+  const s = await dnevnik.fromCookie(cookie);
+  u.session = enc(s);
+  u.creds = null;
+  u.syncError = null;
+  await syncUser(u, ...defaultWindow(), { first: true });
+}
+
+export const EXPIRED_MSG = 'Ключ входа в Дневник.ру устарел — обнови его в EduPlus.';
+
 /** Скачивает период, сохраняет кэш, возвращает новые оценки. Профиль сохраняется внутри. */
 export async function syncUser(u, start, end, { first = false } = {}) {
   let s = dec(u.session);
@@ -44,7 +55,7 @@ export async function syncUser(u, start, end, { first = false } = {}) {
   } catch (e) {
     if (e instanceof dnevnik.SessionExpired) {
       const c = dec(u.creds);
-      if (!c) { u.syncError = 'Сессия Дневник.ру истекла — войди заново.'; await saveUser(u); throw e; }
+      if (!c) { u.syncError = EXPIRED_MSG; await saveUser(u); throw e; }
       s = await dnevnik.login(c.u, c.p);
       raw = await dnevnik.fetchDiary(s, start, end);
     } else {

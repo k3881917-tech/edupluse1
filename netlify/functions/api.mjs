@@ -1,9 +1,9 @@
 // API Mini App + вебхук Telegram-бота. Все пути /api/*.
 import { validate, AuthError } from '../lib/tgauth.mjs';
 import { webhookSecret } from '../lib/crypto.mjs';
-import { DnevnikError } from '../lib/dnevnik.mjs';
+import { DnevnikError, looksLikeCookie } from '../lib/dnevnik.mjs';
 import { getUser, newUser, saveUser, getDiary, deleteDiary } from '../lib/store.mjs';
-import { link, syncUser, quarter, today } from '../lib/sync.mjs';
+import { link, linkCookie, syncUser, quarter, today } from '../lib/sync.mjs';
 import { call, send, openKb, appUrl, START_TEXT } from '../lib/tg.mjs';
 
 export const config = { path: '/api/*' };
@@ -43,6 +43,12 @@ const routes = {
     const login = String(b.login || '').trim(), password = String(b.password || '');
     if (!login || !password) throw new HttpError(400, 'Введи логин и пароль.');
     await link(u, login, password, b.remember !== false);
+    return me(u);
+  },
+
+  'POST link-cookie': async (req, u) => {
+    const b = await body(req);
+    await linkCookie(u, String(b.cookie || ''));
     return me(u);
   },
 
@@ -116,7 +122,17 @@ async function botUpdate(req) {
     const cmd = m.text.split(/[\s@]/)[0];
     let u = await getUser(m.from.id);
     if (!u) { u = newUser(m.from.id, m.from.first_name); await saveUser(u); }
-    if (cmd === '/start') await send(m.chat.id, START_TEXT, openKb());
+    if (looksLikeCookie(m.text)) {
+      // ключ входа: сразу удаляем сообщение из чата, чтобы он там не лежал
+      await call('deleteMessage', { chat_id: m.chat.id, message_id: m.message_id }).catch(() => {});
+      try {
+        await linkCookie(u, m.text);
+        await send(m.chat.id, '✅ Дневник.ру подключён, сообщение с ключом удалено. Открывай:', openKb());
+      } catch (e) {
+        await send(m.chat.id, '❌ ' + (e instanceof DnevnikError ? e.message : 'Не удалось подключиться к Дневник.ру. Попробуй ещё раз.'));
+      }
+    }
+    else if (cmd === '/start') await send(m.chat.id, START_TEXT, openKb());
     else if (cmd === '/notify') {
       u.notify = !u.notify; await saveUser(u);
       await send(m.chat.id, u.notify ? 'Уведомления включены.' : 'Уведомления выключены. Включить: /notify');
