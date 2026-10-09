@@ -1,0 +1,816 @@
+<title>EduPlus</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen phone app — header, sliding views, fixed bottom tab bar, bottom sheets. Dark only. */
+:root{
+  --bg:#0E1016; --surface:#161922; --surface-2:#1E2230; --line:#2A2F40;
+  --fg:#ECEEF5; --muted:#8B90A6; --accent:#9AA8FF; --accent-ink:#0E1016;
+  --good:#5FD3A0; --okay:#9FD36A; --warn:#F2C35B; --bad:#F27A7A;
+  --display:"Unbounded", "Manrope", system-ui, sans-serif;
+  --body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:16px; --ease:cubic-bezier(.22,.8,.24,1);
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden;margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;position:relative}
+
+/* Header */
+.top{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.brand b{color:var(--accent)}
+.top-right{display:flex;align-items:center;gap:8px}
+.demo{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);padding:3px 7px;border-radius:99px}
+.banner{margin:0 16px 8px;padding:10px 12px;border-radius:12px;font-size:13px;background:color-mix(in srgb,var(--bad) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);display:flex;gap:10px;align-items:center}
+.banner button{margin-left:auto;font-weight:700;color:var(--bad);white-space:nowrap}
+
+/* Views */
+.views{flex:1;position:relative;overflow:hidden}
+.view{position:absolute;inset:0;overflow-y:auto;padding:4px 16px calc(96px + env(safe-area-inset-bottom,0px));transition:transform .42s var(--ease),opacity .32s var(--ease)}
+.view.off-l{transform:translateX(-28%);opacity:0;pointer-events:none}
+.view.off-r{transform:translateX(28%);opacity:0;pointer-events:none}
+.view::-webkit-scrollbar{display:none}
+
+/* Tab bar */
+.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:5;transition:transform .4s var(--ease)}
+.tabs.hide{transform:translate(-50%,120%)}
+.tabbar{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:5px}
+.tab{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 6px;font-size:11px;font-weight:600;color:var(--muted);transition:color .3s}
+.tab svg{width:22px;height:22px}
+.tab.on{color:var(--fg)}
+.pill{position:absolute;top:5px;bottom:5px;left:5px;width:calc((100% - 10px)/3);background:var(--surface-2);border-radius:15px;transition:transform .42s var(--ease)}
+
+/* Shared */
+.h1{font-family:var(--display);font-weight:500;font-size:22px;letter-spacing:-.01em;text-wrap:balance;margin:6px 0 2px}
+.sub{color:var(--muted);font-size:13px}
+.row{display:flex;align-items:center;gap:10px}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.iconbtn{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--surface);border:1px solid var(--line);transition:transform .15s;flex:none}
+.iconbtn:active{transform:scale(.92)}
+.iconbtn.spin svg{animation:spin 1s linear infinite}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.section-label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:22px 0 10px}
+
+/* Subject badge */
+.badge{flex:none;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:12px;color:var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 34%,transparent);letter-spacing:-.02em}
+
+/* Today */
+.progress{margin:14px 0 4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.bar{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--good);border-radius:99px;transition:width .5s var(--ease)}
+.lessons{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.lesson{display:grid;grid-template-columns:52px 1fr;gap:12px;animation:rise .45s var(--ease) both;animation-delay:calc(var(--i)*40ms)}
+.time{padding-top:12px;text-align:right}
+.time b{display:block;font-family:var(--mono);font-size:14px}
+.time span{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.card{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--c)}
+.lesson.past .card{opacity:.6}
+.lesson.canceled .card{opacity:.45}
+.lesson.canceled .lname{text-decoration:line-through}
+.lesson.now .card{border-color:color-mix(in srgb,var(--c) 55%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 14%,transparent)}
+.now-tag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--c);text-transform:uppercase}
+.lname{font-weight:700;font-size:15px}
+.meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.room{color:var(--muted);font-size:12px;text-decoration:underline dotted;text-underline-offset:3px;padding:0}
+.theme{font-size:12.5px;color:var(--muted);margin-top:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.tag.test{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.tag.abs{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.tag.cxl{color:var(--muted);background:var(--surface-2)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hw{display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);width:100%;text-align:left}
+.check{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;transition:background .25s,border-color .25s,transform .2s var(--ease)}
+.check svg{width:14px;height:14px;stroke:var(--accent-ink);stroke-width:3;fill:none;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .3s .05s var(--ease)}
+.hw.done .check{background:var(--good);border-color:var(--good);transform:scale(1.06)}
+.hw.done .check svg{stroke-dashoffset:0}
+.hw-text{font-size:13.5px;transition:color .25s;min-width:0;overflow-wrap:anywhere}
+.hw.done .hw-text{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted)}
+.lmarks{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.empty{text-align:center;padding:40px 10px;color:var(--muted)}
+.empty b{display:block;font-family:var(--display);font-weight:500;color:var(--fg);font-size:17px;margin-bottom:6px}
+
+/* Marks */
+.mark{font-family:var(--mono);font-weight:700;font-size:13px;min-width:24px;height:24px;padding:0 6px;border-radius:8px;display:inline-grid;place-items:center;color:var(--accent-ink);background:var(--muted)}
+.m5{background:var(--good)} .m4{background:var(--okay)} .m3{background:var(--warn)} .m2,.m1{background:var(--bad)}
+.mark.ghost{background:transparent;border:1.5px dashed var(--muted);color:var(--fg)}
+
+/* Calendar */
+.cal{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.dow{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding-bottom:4px}
+.day{aspect-ratio:1;max-width:100%;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:var(--mono);font-size:14px;transition:background .2s,transform .2s var(--ease)}
+.day.other{color:color-mix(in srgb,var(--muted) 55%,transparent)}
+.day.wknd{color:var(--muted)}
+.day.today{color:var(--accent);font-weight:700}
+.day.sel{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.day:active{transform:scale(.9)}
+.dots{display:flex;gap:3px;height:5px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--d)}
+.day.sel .dots i{background:var(--accent-ink)}
+.agenda{display:flex;flex-direction:column;gap:8px}
+.ev{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;animation:rise .4s var(--ease) both;animation-delay:calc(var(--i)*35ms)}
+.ev .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.ev .t{font-family:var(--mono);font-size:12px;color:var(--muted);width:44px;flex:none}
+.ev .n{flex:1;min-width:0;font-weight:600;font-size:14px}
+.ev .n small{display:block;font-weight:500;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev.mine{border-style:dashed;border-color:color-mix(in srgb,var(--c) 50%,transparent)}
+.del{color:var(--muted);width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none}
+.addbtn{display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;padding:9px 14px;border-radius:12px;transition:transform .15s}
+.addbtn:active{transform:scale(.95)}
+
+/* Grades */
+.overall{margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.big{font-family:var(--display);font-weight:700;font-size:44px;line-height:1;letter-spacing:-.03em}
+.subjects{display:flex;flex-direction:column;gap:8px}
+.srow{display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;text-align:left;width:100%;transition:transform .2s var(--ease);animation:rise .4s var(--ease) both;animation-delay:calc(var(--i)*30ms)}
+.srow:active{transform:scale(.98)}
+.srow .marks{display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;margin-top:5px;min-width:0}
+.avg{text-align:right}
+.avg b{display:block;font-family:var(--mono);font-size:18px}
+.grade-pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;color:var(--accent-ink)}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:rgba(5,6,10,.6);opacity:0;pointer-events:none;transition:opacity .3s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;bottom:0;width:100%;max-width:520px;max-height:88%;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding:10px 16px calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,105%);transition:transform .45s var(--ease);z-index:21;box-sizing:border-box}
+.sheet.on{transform:translate(-50%,0)}
+.grip{width:40px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg);border-radius:12px;padding:4px;gap:4px}
+.seg button{padding:8px 0;border-radius:9px;font-weight:700;font-size:13px;color:var(--muted);transition:background .25s,color .25s}
+.seg button.on{background:var(--surface-2);color:var(--fg)}
+.result{margin-top:12px;background:var(--bg);border-radius:14px;padding:14px;font-size:14px}
+.result strong{font-family:var(--display);font-weight:500;font-size:16px;display:block;margin-bottom:4px}
+.whatif{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.whatif button{padding:7px 12px;border-radius:10px;background:var(--surface-2);font-family:var(--mono);font-weight:700;font-size:13px}
+.spark{width:100%;height:70px;display:block;margin-top:8px}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.field input{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--fg);font:inherit;width:100%;box-sizing:border-box}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.types{display:flex;gap:8px;flex-wrap:wrap}
+.types button{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:600;transition:border-color .2s,background .2s}
+.types button i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.types button.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.primary{width:100%;margin-top:18px;background:var(--accent);color:var(--accent-ink);font-weight:800;padding:13px;border-radius:14px;display:flex;justify-content:center;align-items:center;gap:8px}
+.ghostbtn{width:100%;margin-top:10px;padding:12px;border-radius:14px;border:1px solid var(--line);font-weight:700}
+.ghostbtn.danger{color:var(--bad)}
+.err{color:var(--bad);font-size:13px;margin-top:10px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.switch{width:44px;height:26px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);position:relative;transition:background .25s;flex:none}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .25s var(--ease),background .25s}
+.switch.on{background:color-mix(in srgb,var(--good) 30%,var(--surface-2))}
+.switch.on::after{transform:translateX(18px);background:var(--good)}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--fg);color:var(--bg);font-weight:700;font-size:13px;padding:9px 16px;border-radius:12px;transition:.3s var(--ease);z-index:30;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+
+/* Login & loading */
+.screen{position:absolute;inset:0;overflow-y:auto;padding:24px 16px;display:flex;flex-direction:column;justify-content:center;animation:rise .5s var(--ease) both}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px}
+.hero-mark{font-family:var(--display);font-weight:700;font-size:34px;letter-spacing:-.03em;line-height:1.05;margin-bottom:10px}
+.hero-mark b{color:var(--accent)}
+.checkrow{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--muted);text-align:left}
+.checkrow .check{width:20px;height:20px}
+.checkrow.on .check{background:var(--good);border-color:var(--good)}
+.checkrow.on .check svg{stroke-dashoffset:0}
+.fine{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+.skel{height:76px;border-radius:var(--r);background:linear-gradient(90deg,var(--surface) 25%,var(--surface-2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
+
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">Edu<b>Plus</b></div>
+    <div class="top-right">
+      <span class="demo" id="demoBadge" hidden title="Примерные данные, без синхронизации">Демо-данные</span>
+      <button class="iconbtn" id="settingsBtn" aria-label="Настройки"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+  </header>
+  <div id="banner" hidden></div>
+
+  <main class="views" id="views">
+    <section class="view" id="v-today" aria-label="Сегодня"></section>
+    <section class="view off-r" id="v-cal" aria-label="Календарь"></section>
+    <section class="view off-r" id="v-grades" aria-label="Оценки"></section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <div class="tabbar" role="tablist">
+      <div class="pill" id="pill"></div>
+      <button class="tab on" data-tab="0" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>Сегодня</button>
+      <button class="tab" data-tab="1" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Календарь</button>
+      <button class="tab" data-tab="2" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>Оценки</button>
+    </div>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* =========================================================
+   EduPlus — Telegram Mini App
+   Режимы: "api" (открыт из бота, данные с сервера) и "demo" (примерные данные).
+   ========================================================= */
+const tg = window.Telegram?.WebApp;
+const INIT = tg?.initData || '';
+const MODE = INIT ? 'api' : 'demo';
+
+/* ---------- utils ---------- */
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2,'0');
+const key = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d) };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x };
+const sameDay = (a,b) => key(a) === key(b);
+const DOW_FULL = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const hash = s => { let h = 0; for (const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) | 0; return Math.abs(h) };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const toMin = t => { if (!t) return 0; const [h,m] = t.split(':').map(Number); return h*60+m };
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const haptic = (t='light') => { try { t==='select' ? tg?.HapticFeedback?.selectionChanged() : tg?.HapticFeedback?.impactOccurred(t) } catch(e){} };
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('eduplus:'+k); return v ? JSON.parse(v) : d } catch(e){ return d } },
+  set(k, v){ try { localStorage.setItem('eduplus:'+k, JSON.stringify(v)) } catch(e){} }
+};
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+
+/* ---------- оформление предметов ---------- */
+const STYLE_RULES = [
+  [/алгебр/i, 'x²', '#7FA8FF'], [/геометр/i, '△', '#5ED1E8'], [/вероятн|статист/i, 'P(A)', '#8FC7FF'],
+  [/^матем/i, 'Мат', '#7FA8FF'], [/рус/i, 'Ру', '#FF8FA3'], [/литер|чтени/i, 'Лит', '#E7A6FF'],
+  [/англ|english|иностр/i, 'En', '#FFB86B'], [/немец|deutsch/i, 'De', '#FFC98F'], [/франц/i, 'Fr', '#FFA88F'],
+  [/физкульт|физ-?ра|физическ/i, 'ФК', '#F2D36B'], [/физик/i, 'Ф', '#B9A0FF'], [/хими/i, 'Хим', '#7DE3B0'],
+  [/биолог/i, 'Био', '#A8DB6B'], [/истор/i, 'Ист', '#E3B98A'], [/обществ/i, 'Общ', '#F2A0C8'],
+  [/географ/i, 'Гео', '#6FD3B8'], [/информ/i, '</>', '#6FE0D0'], [/обзр|обж|безопасн/i, 'ОБЗ', '#F2937A'],
+  [/труд|технолог/i, 'Тр', '#D6B37A'], [/музык/i, '♪', '#C9A0FF'], [/изо|искусств|рисов/i, 'Изо', '#FF9FD0'],
+  [/астроном/i, '★', '#A0B4FF'], [/родн/i, 'Рд', '#FFB0A0'], [/проект/i, 'Пр', '#9BD0FF'],
+];
+const FALLBACK = ['#7FA8FF','#FF8FA3','#7DE3B0','#FFB86B','#B9A0FF','#5ED1E8','#E3B98A','#F2A0C8'];
+const styleCache = {};
+function sty(name){
+  if (styleCache[name]) return styleCache[name];
+  const r = STYLE_RULES.find(([re]) => re.test(name));
+  const s = r ? { s: r[1], c: r[2] } : { s: name.replace(/[^А-Яа-яЁёA-Za-z]/g,'').slice(0,2) || '•', c: FALLBACK[hash(name) % FALLBACK.length] };
+  return styleCache[name] = s;
+}
+
+/* ---------- четверти (как на сервере) ---------- */
+function quarter(d){
+  const y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
+  const q = [[new Date(y,8,1), new Date(y,9,31), '1 четверть'], [new Date(y,10,1), new Date(y,11,31), '2 четверть'],
+             [new Date(y+1,0,1), new Date(y+1,2,25), '3 четверть'], [new Date(y+1,2,26), new Date(y+1,7,31), '4 четверть']];
+  const f = q.find(([s,e]) => d >= s && d <= e) || q[0];
+  return { start: key(f[0]), end: key(f[1]), name: f[2] };
+}
+
+/* ---------- state ---------- */
+const S = {
+  me: null,
+  days: new Map(),          // 'YYYY-MM-DD' -> [lessons]
+  events: [],               // {id,date,time,title,type}
+  loaded: [],               // загруженные периоды [start,end]
+  rooms: store.get('rooms', {}),   // только для демо
+  dayOffset: 0, calMonth: new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), calSel: new Date(TODAY), tab: 0,
+};
+const TYPES = [
+  {id:'me', name:'Личное', c:'#9AA8FF'}, {id:'study', name:'Учёба', c:'#F27A7A'},
+  {id:'sport', name:'Спорт', c:'#5FD3A0'}, {id:'fun', name:'Отдых', c:'#F2C35B'},
+];
+const lessonsOn = d => S.days.get(key(d)) || [];
+
+/* ---------- API ---------- */
+async function api(path, opts = {}){
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': INIT, ...(opts.headers||{}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  let data = null; try { data = await res.json() } catch(e){}
+  if (!res.ok) throw new Error(data?.detail?.[0]?.msg ? 'Проверь, что все поля заполнены.' : (data?.detail || `Ошибка сервера (${res.status})`));
+  return data;
+}
+
+function ingest(days, events){
+  for (const d of days) S.days.set(d.date, d.lessons);
+  const ids = new Set(events.map(e => String(e.id)));
+  S.events = S.events.filter(e => !ids.has(String(e.id))).concat(events);
+}
+const isLoaded = (a, b) => S.loaded.some(([s,e]) => s <= a && e >= b);
+
+async function loadRange(start, end){
+  if (MODE === 'demo' || isLoaded(start, end)) return;
+  const r = await api(`/api/diary?start=${start}&end=${end}`);
+  ingest(r.days, r.events);
+  S.loaded.push([start, end]);
+}
+
+/* ---------- демо-данные ---------- */
+function buildDemo(){
+  const SUB = ['Алгебра','Геометрия','Русский язык','Литература','Английский язык','Физика','Химия','Биология','История','Информатика','Обществознание','Физкультура','Вероятность и статистика'];
+  const WEEK = {1:[0,2,4,5,8,11],2:[1,3,6,7,9,0],3:[2,0,10,4,5,11],4:[0,1,8,3,6,9,12],5:[2,5,7,0,10,3]};
+  const BELLS = [['08:30','09:15'],['09:25','10:10'],['10:30','11:15'],['11:35','12:20'],['12:30','13:15'],['13:25','14:10'],['14:20','15:05']];
+  const ROOMS = ['214','214','305','305','118','221','202','209','307','401','307','Спортзал','214'];
+  const HW = ['№ 312, 315, 318','§ 8, задачи 74, 76','Упр. 214','Прочитать гл. 4–6','Unit 3, ex. 5–7','§ 21, упр. 14','§ 15, уравнения 1–4','§ 19, конспект','§ 11–12, даты в тетрадь','Задача на Python, № 5–7','§ 9, вопросы','','Задачи 1–6 на стр. 41'];
+  const done = store.get('done', {});
+  const q = quarter(TODAY);
+  for (let d = parse(q.start); d <= addDays(TODAY, 60); d = addDays(d, 1)){
+    const plan = WEEK[d.getDay()]; if (!plan) continue;
+    const past = d < TODAY;
+    S.days.set(key(d), plan.map((si, i) => {
+      const h = hash(key(d) + si + i), name = SUB[si], id = key(d)+'-'+i;
+      const hw = HW[si] ? { id: 'hw-'+id, text: HW[si], done: past ? h % 5 !== 0 : !!done['hw-'+id] } : null;
+      if (hw && done['hw-'+id] !== undefined) hw.done = done['hw-'+id];
+      const marks = past && si !== 11 && h % 3 === 0 ? [{ id:'m-'+id, v: String([5,5,4,5,4,3,5,4,2][h % 9]), work: h % 4 ? 'Работа на уроке' : 'Самостоятельная работа', date: key(d) }] : [];
+      return { id, n: i+1, subject: { id: 's'+si, name }, from: BELLS[i][0], to: BELLS[i][1], room: S.rooms['s'+si] ?? ROOMS[si],
+               theme: null, canceled: false, hw, marks, important: !past && si !== 11 && h % 13 === 0 ? ['Контрольная работа'] : [], absent: null };
+    }));
+  }
+  S.events = store.get('events', null) || [
+    { id:'e1', date:key(addDays(TODAY,2)), time:'17:00', title:'Тренировка по баскетболу', type:'sport', example:true },
+    { id:'e2', date:key(addDays(TODAY,5)), time:'10:00', title:'Пробник ОГЭ по математике', type:'study', example:true },
+    { id:'e3', date:key(addDays(TODAY,9)), time:'19:00', title:'Кино с друзьями', type:'fun', example:true },
+  ];
+  S.me = { linked: true, quarter: q, demo: true };
+}
+
+/* ---------- tabs ---------- */
+const views = ['#v-today','#v-cal','#v-grades'].map(s => $(s));
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => go(+b.dataset.tab)));
+function go(i){
+  if (i === S.tab) return;
+  views.forEach((v,j) => { v.classList.toggle('off-l', j < i); v.classList.toggle('off-r', j > i); });
+  document.querySelectorAll('.tab').forEach((b,j) => { b.classList.toggle('on', j === i); b.setAttribute('aria-selected', j === i) });
+  $('#pill').style.transform = `translateX(${i*100}%)`;
+  S.tab = i; haptic('select');
+}
+
+/* ---------- marks ---------- */
+const num = v => { const n = parseInt(String(v), 10); return n >= 1 && n <= 5 ? n : null };
+const markHTML = m => `<span class="mark m${num(m.v) ?? ''}${m.ghost ? ' ghost' : ''}" title="${esc(m.work || '')}">${esc(m.v)}</span>`;
+
+/* ---------- Today ---------- */
+function renderToday(){
+  const d = addDays(TODAY, S.dayOffset);
+  const L = lessonsOn(d);
+  const isToday = S.dayOffset === 0;
+  const nowMin = new Date().getHours()*60 + new Date().getMinutes();
+  const title = isToday ? 'Сегодня' : S.dayOffset === 1 ? 'Завтра' : S.dayOffset === -1 ? 'Вчера' : cap(DOW_FULL[d.getDay()]);
+  let html = `
+    <div class="spread">
+      <div><div class="h1">${title}</div><div class="sub">${DOW_FULL[d.getDay()]}, ${d.getDate()} ${MONTHS_G[d.getMonth()]}</div></div>
+      <div class="row">
+        <button class="iconbtn" data-day="-1" aria-label="Предыдущий день"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="iconbtn" data-day="1" aria-label="Следующий день"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>`;
+  const mine = S.events.filter(e => e.date === key(d));
+  if (!L.length){
+    const loaded = MODE === 'demo' || isLoaded(key(d), key(d));
+    html += loaded
+      ? `<div class="empty"><b>Уроков нет</b>${mine.length ? 'Твои события на этот день:' : 'Можно отдохнуть.'}</div>` + agendaHTML(mine.map(e => ({ mine:true, ...e })))
+      : `<div class="lessons">${'<div class="skel"></div>'.repeat(4)}</div>`;
+    $('#v-today').innerHTML = html;
+    if (!loaded) ensureDay(d);
+    return;
+  }
+  const withHw = L.filter(l => l.hw && !l.canceled), fin = withHw.filter(l => l.hw.done).length;
+  if (withHw.length) html += `<div class="progress"><div class="spread"><span style="font-weight:700">Домашка</span><span class="mono" id="hwCount" style="color:var(--muted)">${fin} из ${withHw.length}</span></div><div class="bar"><i id="hwBar" style="width:${fin/withHw.length*100}%"></i></div></div>`;
+  html += `<div class="lessons">`;
+  L.forEach((l, i) => {
+    const st = sty(l.subject.name);
+    const state = l.canceled ? 'canceled' : !isToday ? (S.dayOffset < 0 ? 'past' : '') : nowMin >= toMin(l.to) ? 'past' : nowMin >= toMin(l.from) ? 'now' : '';
+    const tags = [
+      ...l.important.map(w => `<span class="tag test">${esc(w)}</span>`),
+      l.canceled ? '<span class="tag cxl">Отменён</span>' : '',
+      l.absent ? `<span class="tag abs">${esc(l.absent)}</span>` : '',
+    ].join('');
+    html += `<div class="lesson ${state}" style="--i:${i};--c:${st.c}">
+      <div class="time"><b>${esc(l.from || '—')}</b><span>${esc(l.to || '')}</span></div>
+      <div class="card">
+        ${state === 'now' ? '<div class="now-tag">Сейчас</div>' : ''}
+        <div class="row" style="align-items:flex-start">
+          <div style="min-width:0;flex:1"><div class="lname">${esc(l.subject.name)}</div>
+            <div class="meta"><span>${l.n ? l.n + '-й урок' : 'Урок'}</span>·<button class="room" data-room="${esc(l.subject.id)}" data-name="${esc(l.subject.name)}">${l.room ? 'каб. ' + esc(l.room) : 'кабинет?'}</button></div>
+          </div>
+          ${tags ? `<div class="tags">${tags}</div>` : ''}
+        </div>
+        ${l.theme ? `<div class="theme">${esc(l.theme)}</div>` : ''}
+        ${l.marks.length ? `<div class="lmarks">${l.marks.map(markHTML).join('')}</div>` : ''}
+        ${l.hw ? `<button class="hw ${l.hw.done ? 'done' : ''}" data-hw="${esc(l.hw.id)}" aria-pressed="${l.hw.done}"><span class="check"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="hw-text">${esc(l.hw.text)}${l.hw.files ? ` <span class="sub">· файлов: ${l.hw.files}</span>` : ''}</span></button>` : ''}
+      </div></div>`;
+  });
+  html += `</div>`;
+  if (mine.length) html += `<div class="section-label">Мои события</div>` + agendaHTML(mine.map(e => ({ mine:true, ...e })));
+  $('#v-today').innerHTML = html;
+}
+
+async function ensureDay(d){
+  const s = key(addDays(d, -3)), e = key(addDays(d, 14));
+  try { await loadRange(s, e) } catch(err){ toast(err.message); S.loaded.push([s, e]) }
+  renderToday(); renderCal();
+}
+
+function findHw(id){
+  for (const L of S.days.values()) for (const l of L) if (l.hw && l.hw.id === id) return l.hw;
+  return null;
+}
+
+$('#v-today').addEventListener('click', async e => {
+  const nav = e.target.closest('[data-day]');
+  if (nav){ S.dayOffset += +nav.dataset.day; renderToday(); $('#v-today').scrollTop = 0; haptic('select'); return; }
+  const rb = e.target.closest('[data-room]');
+  if (rb){ openRoomSheet(rb.dataset.room, rb.dataset.name); return; }
+  const btn = e.target.closest('[data-hw]');
+  if (!btn) return;
+  const hw = findHw(btn.dataset.hw); if (!hw) return;
+  hw.done = !hw.done;
+  btn.classList.toggle('done', hw.done); btn.setAttribute('aria-pressed', hw.done);
+  haptic(hw.done ? 'medium' : 'light');
+  const L = lessonsOn(addDays(TODAY, S.dayOffset)).filter(l => l.hw && !l.canceled), fin = L.filter(l => l.hw.done).length;
+  $('#hwBar').style.width = (fin / L.length * 100) + '%';
+  $('#hwCount').textContent = `${fin} из ${L.length}`;
+  if (fin === L.length && hw.done) toast('Вся домашка сделана 🎉');
+  if (MODE === 'demo'){ const d = store.get('done', {}); d[hw.id] = hw.done; store.set('done', d); return; }
+  try { await api('/api/hw', { method:'POST', body:{ hw_id: hw.id, done: hw.done } }) }
+  catch(err){ hw.done = !hw.done; renderToday(); toast('Не сохранилось: ' + err.message) }
+});
+
+/* ---------- Room sheet ---------- */
+function openRoomSheet(subjectId, name){
+  const cur = [...S.days.values()].flat().find(l => l.subject.id === subjectId)?.room || '';
+  sheet(`
+    <div class="h1" style="margin:0">Кабинет</div>
+    <div class="sub">${esc(name)} — запомню для всех уроков этого предмета</div>
+    <div class="field"><label for="room-in">Номер кабинета</label><input id="room-in" maxlength="20" value="${esc(cur)}" placeholder="Например, 214"></div>
+    <button class="primary" id="room-save">Сохранить</button>`);
+  setTimeout(() => $('#room-in')?.focus(), 350);
+  $('#sheet').onclick = async e => {
+    if (!e.target.closest('#room-save')) return;
+    const room = $('#room-in').value.trim();
+    for (const L of S.days.values()) for (const l of L) if (l.subject.id === subjectId) l.room = room || null;
+    if (MODE === 'demo'){ S.rooms[subjectId] = room; store.set('rooms', S.rooms) }
+    else { try { await api('/api/rooms', { method:'PUT', body:{ subject_id: subjectId, room } }) } catch(err){ toast(err.message) } }
+    closeSheet(); renderToday(); renderCal(); toast(room ? 'Кабинет сохранён' : 'Кабинет убран');
+  };
+}
+
+/* ---------- Calendar ---------- */
+function agendaHTML(items){
+  if (!items.length) return '';
+  return `<div class="agenda">` + items.map((it, i) => {
+    if (it.mine){
+      const T = TYPES.find(t => t.id === it.type) || TYPES[0];
+      return `<div class="ev mine" style="--i:${i};--c:${T.c}"><span class="dot"></span><span class="t">${esc(it.time || 'день')}</span><span class="n">${esc(it.title)}<small>${T.name}${it.example ? ' · пример' : ''}</small></span><button class="del" data-del="${esc(it.id)}" aria-label="Удалить событие"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+    }
+    const st = sty(it.subject.name);
+    return `<div class="ev" style="--i:${i};--c:${st.c}"><span class="dot"></span><span class="t">${esc(it.from || '')}</span><span class="n">${esc(it.subject.name)}${it.important.length ? ` <span class="tag test">${esc(it.important[0])}</span>` : ''}<small>${it.room ? 'каб. ' + esc(it.room) : ''}${it.room && it.hw ? ' · ' : ''}${it.hw ? esc(it.hw.text) : ''}</small></span></div>`;
+  }).join('') + `</div>`;
+}
+
+function renderCal(){
+  const y = S.calMonth.getFullYear(), m = S.calMonth.getMonth();
+  const first = new Date(y, m, 1), start = addDays(first, -((first.getDay() + 6) % 7));
+  const weeks = Math.ceil(((first.getDay() + 6) % 7 + new Date(y, m + 1, 0).getDate()) / 7);
+  let grid = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => `<div class="dow">${d}</div>`).join('');
+  for (let i = 0; i < weeks * 7; i++){
+    const d = addDays(start, i), k = key(d);
+    const tests = lessonsOn(d).filter(l => l.important.length), mine = S.events.filter(e => e.date === k);
+    const dots = tests.slice(0,2).map(t => `<i style="--d:${sty(t.subject.name).c}"></i>`).join('')
+               + mine.slice(0,2).map(e => `<i style="--d:${(TYPES.find(t => t.id === e.type) || TYPES[0]).c}"></i>`).join('');
+    const cls = ['day', d.getMonth() !== m ? 'other' : '', d.getDay() % 6 === 0 ? 'wknd' : '', sameDay(d, TODAY) ? 'today' : '', sameDay(d, S.calSel) ? 'sel' : ''].join(' ');
+    grid += `<button class="${cls}" data-date="${k}" aria-label="${d.getDate()} ${MONTHS_G[d.getMonth()]}">${d.getDate()}<span class="dots">${dots}</span></button>`;
+  }
+  const k = key(S.calSel);
+  const items = [...S.events.filter(e => e.date === k).map(e => ({ mine:true, ...e, _t: e.time || '00:00' })),
+                 ...lessonsOn(S.calSel).map(l => ({ ...l, _t: l.from || '' }))].sort((a,b) => a._t.localeCompare(b._t));
+  const loaded = MODE === 'demo' || isLoaded(k, k);
+  $('#v-cal').innerHTML = `
+    <div class="h1">Календарь</div>
+    <div class="cal">
+      <div class="spread">
+        <button class="iconbtn" data-month="-1" aria-label="Предыдущий месяц"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div style="font-family:var(--display);font-weight:500;font-size:15px">${cap(MONTHS[m])} ${y}</div>
+        <button class="iconbtn" data-month="1" aria-label="Следующий месяц"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="cal-grid">${grid}</div>
+    </div>
+    <div class="spread" style="margin:20px 0 10px">
+      <div><div style="font-weight:700">${S.calSel.getDate()} ${MONTHS_G[S.calSel.getMonth()]}</div><div class="sub">${DOW_FULL[S.calSel.getDay()]}</div></div>
+      <button class="addbtn" id="addEv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Событие</button>
+    </div>
+    ${items.length ? agendaHTML(items) : loaded ? `<div class="empty"><b>Свободный день</b>Ни уроков, ни событий. Нажми «Событие», чтобы добавить своё.</div>` : `<div class="agenda">${'<div class="skel" style="height:56px"></div>'.repeat(3)}</div>`}`;
+}
+
+async function ensureMonth(){
+  const y = S.calMonth.getFullYear(), m = S.calMonth.getMonth();
+  const s = key(addDays(new Date(y, m, 1), -7)), e = key(addDays(new Date(y, m + 1, 0), 7));
+  if (MODE === 'demo' || isLoaded(s, e)) return;
+  try { await loadRange(s, e) } catch(err){ toast(err.message); S.loaded.push([s, e]) }
+  renderCal(); renderToday();
+}
+
+$('#v-cal').addEventListener('click', e => {
+  const mb = e.target.closest('[data-month]');
+  if (mb){ S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth() + +mb.dataset.month, 1); renderCal(); ensureMonth(); haptic('select'); return; }
+  const db = e.target.closest('[data-date]');
+  if (db){ S.calSel = parse(db.dataset.date); if (S.calSel.getMonth() !== S.calMonth.getMonth()){ S.calMonth = new Date(S.calSel.getFullYear(), S.calSel.getMonth(), 1); ensureMonth() } renderCal(); haptic('select'); return; }
+  if (e.target.closest('#addEv')) openEventSheet();
+});
+
+document.addEventListener('click', async e => {
+  const del = e.target.closest('[data-del]'); if (!del) return;
+  const id = del.dataset.del, ev = S.events.find(x => String(x.id) === id);
+  S.events = S.events.filter(x => x !== ev); renderCal(); renderToday();
+  if (MODE === 'demo'){ store.set('events', S.events); toast('Событие удалено'); return; }
+  try { await api('/api/events/' + id, { method:'DELETE' }); toast('Событие удалено') }
+  catch(err){ S.events.push(ev); renderCal(); renderToday(); toast(err.message) }
+});
+
+/* ---------- Event sheet ---------- */
+function openEventSheet(){
+  let type = 'me';
+  sheet(`
+    <div class="h1" style="margin:0">Новое событие</div>
+    <div class="field"><label for="ev-title">Название</label><input id="ev-title" placeholder="Например, репетитор по физике" maxlength="80"></div>
+    <div class="two">
+      <div class="field"><label for="ev-date">Дата</label><input id="ev-date" type="date" value="${key(S.calSel)}"></div>
+      <div class="field"><label for="ev-time">Время</label><input id="ev-time" type="time" value="16:00"></div>
+    </div>
+    <div class="field"><label>Тип</label><div class="types">${TYPES.map(t => `<button data-type="${t.id}" class="${t.id === type ? 'on' : ''}" style="--c:${t.c}"><i></i>${t.name}</button>`).join('')}</div></div>
+    <button class="primary" id="ev-save">Добавить</button>
+    <div class="err" id="ev-err" hidden></div>`);
+  setTimeout(() => $('#ev-title')?.focus(), 350);
+  $('#sheet').onclick = async e => {
+    const tb = e.target.closest('[data-type]');
+    if (tb){ type = tb.dataset.type; document.querySelectorAll('[data-type]').forEach(b => b.classList.toggle('on', b === tb)); haptic('select'); return }
+    if (!e.target.closest('#ev-save')) return;
+    const title = $('#ev-title').value.trim();
+    if (!title){ $('#ev-err').textContent = 'Напиши название события.'; $('#ev-err').hidden = false; return }
+    const body = { date: $('#ev-date').value || key(S.calSel), time: $('#ev-time').value, title, type };
+    let ev = { id: 'e' + Date.now(), ...body };
+    if (MODE === 'api'){
+      const btn = $('#ev-save'); btn.disabled = true;
+      try { ev = await api('/api/events', { method:'POST', body }) }
+      catch(err){ btn.disabled = false; $('#ev-err').textContent = err.message; $('#ev-err').hidden = false; return }
+    }
+    S.events.push(ev);
+    if (MODE === 'demo') store.set('events', S.events);
+    S.calSel = parse(ev.date); S.calMonth = new Date(S.calSel.getFullYear(), S.calSel.getMonth(), 1);
+    closeSheet(); renderCal(); renderToday(); ensureMonth(); haptic('medium'); toast('Событие добавлено');
+  };
+}
+
+/* ---------- Grades ---------- */
+function gradeRows(){
+  const q = S.me.quarter, by = new Map();
+  for (const [date, L] of S.days){
+    if (date < q.start || date > q.end) continue;
+    for (const l of L){
+      const r = by.get(l.subject.id) || { id: l.subject.id, name: l.subject.name, list: [] };
+      for (const m of l.marks){ const n = num(m.v); if (n) r.list.push({ v: n, w: 1, date, work: m.work }) }
+      by.set(l.subject.id, r);
+    }
+  }
+  return [...by.values()].map(r => { r.list.sort((a,b) => a.date.localeCompare(b.date)); r.a = avg(r.list); return r })
+    .sort((a,b) => (b.list.length ? 1 : 0) - (a.list.length ? 1 : 0) || a.name.localeCompare(b.name, 'ru'));
+}
+const avg = list => { const sw = list.reduce((a,m) => a + m.w, 0); return sw ? list.reduce((a,m) => a + m.v*m.w, 0) / sw : 0 };
+const gradeOf = a => a >= 4.5 ? 5 : a >= 3.5 ? 4 : a >= 2.5 ? 3 : 2;
+const fmt = a => a.toFixed(2).replace('.', ',');
+const pillColor = g => g === 5 ? 'var(--good)' : g === 4 ? 'var(--okay)' : g === 3 ? 'var(--warn)' : 'var(--bad)';
+
+function renderGrades(){
+  const rows = gradeRows(), rated = rows.filter(r => r.list.length);
+  const overall = rated.length ? rated.reduce((a,r) => a + r.a, 0) / rated.length : 0;
+  const edge = rated.filter(r => { const g = gradeOf(r.a); return g < 5 && r.a - ({4:3.5,3:2.5,2:0}[g]) < .15 || (g < 5 && ({4:4.5,3:3.5,2:2.5}[g]) - r.a < .1) });
+  $('#v-grades').innerHTML = `
+    <div class="h1">Оценки</div><div class="sub">${esc(S.me.quarter.name)} · обычный средний балл</div>
+    <div class="overall">
+      <div class="big mono">${rated.length ? fmt(overall) : '—'}</div>
+      <div><div style="font-weight:700">Общий средний балл</div><div class="sub">${!rated.length ? 'Оценок в этой четверти пока нет' : edge.length ? 'На грани: ' + edge.map(r => esc(r.name)).join(', ') : 'Все предметы с запасом'}</div></div>
+    </div>
+    <div class="section-label">Предметы</div>
+    <div class="subjects">${rows.map((r,i) => { const st = sty(r.name), g = gradeOf(r.a); return `
+      <button class="srow" data-subj="${esc(r.id)}" style="--i:${i};--c:${st.c}">
+        <span class="badge">${esc(st.s)}</span>
+        <span style="min-width:0"><span style="font-weight:700;display:block">${esc(r.name)}</span><span class="marks">${r.list.length ? r.list.slice(-8).map(markHTML).join('') : '<span class="sub">нет оценок</span>'}</span></span>
+        <span class="avg">${r.list.length ? `<b>${fmt(r.a)}</b><span class="grade-pill" style="background:${pillColor(g)}">→ ${g}</span>` : ''}</span>
+      </button>`}).join('') || '<div class="empty"><b>Пока пусто</b>Предметы появятся после синхронизации.</div>'}</div>`;
+}
+$('#v-grades').addEventListener('click', e => { const b = e.target.closest('[data-subj]'); if (b) openSubject(b.dataset.subj) });
+
+/* калькулятор */
+const THR = {5:4.5, 4:3.5, 3:2.5};
+function need(list, target, mark){
+  const t = THR[target]; if (mark < t) return Infinity;
+  let sum = list.reduce((a,m) => a + m.v*m.w, 0), w = list.reduce((a,m) => a + m.w, 0), n = 0;
+  while ((w ? sum/w : 0) < t && n < 60){ sum += mark; w += 1; n++ }
+  return n;
+}
+function spare(list, target, mark){
+  const t = THR[target]; let sum = list.reduce((a,m) => a + m.v*m.w, 0), w = list.reduce((a,m) => a + m.w, 0), n = 0;
+  while (n < 60){ if ((sum + mark) / (w + 1) < t) break; sum += mark; w++; n++ }
+  return n;
+}
+const plural = (n,a,b,c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c };
+const WORD = {5:['пятёрка','пятёрки','пятёрок'],4:['четвёрка','четвёрки','четвёрок'],3:['тройка','тройки','троек'],2:['двойка','двойки','двоек']};
+const nw = (n,v) => n + ' ' + plural(n, ...WORD[v]);
+
+function openSubject(id){
+  const row = gradeRows().find(r => r.id === id); if (!row) return;
+  const st = sty(row.name), base = row.list;
+  let extra = [], cur = gradeOf(avg(base)), target = base.length ? Math.min(5, cur < 5 ? cur + 1 : 5) : 5;
+  const draw = () => {
+    const list = [...base, ...extra], a = avg(list), g = gradeOf(a);
+    const pts = list.map((_, i) => avg(list.slice(0, i + 1)));
+    const W = 300, H = 70, x = i => pts.length < 2 ? W/2 : 6 + i*(W - 12)/(pts.length - 1), y = v => H - 6 - (v - 2)/3*(H - 12);
+    const path = pts.map((v,i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+    let res;
+    if (list.length && a >= THR[target]){
+      const sp = [4,3,2].filter(v => v < THR[target]).map(v => ({ v, n: spare(list, target, v) }));
+      res = `<strong>Выходит ${target} — запас есть</strong>` + sp.map(o => o.n === 0 ? `Одна ${WORD[o.v][0]} уже опустит ниже ${String(THR[target]).replace('.', ',')}.` : `Можно получить до ${nw(o.n, o.v)} подряд и остаться на ${target}.`).join('<br>');
+    } else {
+      const opts = [5,4].map(v => ({ v, n: need(list, target, v) })).filter(o => isFinite(o.n) && o.n < 60);
+      res = `<strong>До ${target}: нужен средний ${String(THR[target]).replace('.', ',')}</strong>` + (opts.map((o,i) => `${i ? 'или ' : ''}${nw(o.n, o.v)} подряд`).join('<br>') || 'Нужны только пятёрки.');
+    }
+    sheet(`
+      <div class="row" style="--c:${st.c}"><span class="badge">${esc(st.s)}</span><div style="flex:1;min-width:0"><div class="h1" style="margin:0;font-size:19px">${esc(row.name)}</div><div class="sub">${list.length ? `Средний ${fmt(a)} · сейчас выходит ${g}` : 'Оценок пока нет'}</div></div></div>
+      <div class="section-label">Оценки за четверть</div>
+      <div class="row" style="flex-wrap:wrap;gap:6px">${list.map(markHTML).join('') || '<span class="sub">—</span>'}</div>
+      ${pts.length > 1 ? `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Изменение среднего балла">
+        <line x1="0" x2="${W}" y1="${y(4.5)}" y2="${y(4.5)}" stroke="var(--line)" stroke-dasharray="3 4" fill="none"/>
+        <line x1="0" x2="${W}" y1="${y(3.5)}" y2="${y(3.5)}" stroke="var(--line)" stroke-dasharray="3 4" fill="none"/>
+        <path d="${path}" fill="none" stroke="${st.c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <circle cx="${x(pts.length - 1)}" cy="${y(pts[pts.length - 1])}" r="4" fill="${st.c}"/>
+      </svg>
+      <div class="sub mono" style="font-size:11px">пунктир: 4,5 и 3,5 — границы пятёрки и четвёрки</div>` : ''}
+      <div class="section-label">Калькулятор: хочу в четверти</div>
+      <div class="seg">${[5,4,3].map(v => `<button data-target="${v}" class="${v === target ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <div class="result">${res}</div>
+      <div class="section-label">А что если получу…</div>
+      <div class="whatif">${[5,4,3,2].map(v => `<button data-add="${v}" aria-label="Добавить воображаемую ${v}"><span class="mark m${v}">+${v}</span></button>`).join('')}${extra.length ? `<button data-reset style="font-family:var(--body);color:var(--muted)">Сбросить</button>` : ''}</div>
+      <div class="sub" style="margin-top:8px">Пунктирные оценки воображаемые, в дневник они не попадут.</div>`, true);
+    $('#sheet').onclick = e => {
+      const t = e.target.closest('[data-target]'); if (t){ target = +t.dataset.target; haptic('select'); draw(); return }
+      const ad = e.target.closest('[data-add]'); if (ad){ extra.push({ v: +ad.dataset.add, w: 1, ghost: true }); haptic('light'); draw(); return }
+      if (e.target.closest('[data-reset]')){ extra = []; draw() }
+    };
+  };
+  draw();
+}
+
+/* ---------- Settings ---------- */
+function ago(ts){
+  if (!ts) return 'ещё не было';
+  const m = Math.round((Date.now()/1000 - ts) / 60);
+  return m < 1 ? 'только что' : m < 60 ? `${m} мин назад` : m < 1440 ? `${Math.round(m/60)} ч назад` : new Date(ts*1000).toLocaleDateString('ru-RU');
+}
+function openSettings(){
+  if (MODE === 'demo'){
+    sheet(`<div class="h1" style="margin:0">Демо-режим</div>
+      <p class="sub" style="font-size:14px">Сейчас показаны примерные данные. Чтобы увидеть свой дневник, открой EduPlus через Telegram-бота и войди в Дневник.ру.</p>
+      <button class="ghostbtn" id="demoReset">Сбросить демо-отметки и события</button>`);
+    $('#sheet').onclick = e => { if (e.target.closest('#demoReset')){ ['done','events','rooms'].forEach(k => store.set(k, null)); location.reload() } };
+    return;
+  }
+  const me = S.me;
+  sheet(`<div class="h1" style="margin:0">Настройки</div>
+    <div class="sub">Дневник.ру подключён · обновлено ${ago(me.last_sync)}</div>
+    <button class="primary" id="syncNow">Обновить сейчас</button>
+    <div class="toggle"><div><div style="font-weight:700">Уведомления в Telegram</div><div class="sub">Новые оценки и домашка на завтра</div></div><button class="switch ${me.notify ? 'on' : ''}" id="notifySw" role="switch" aria-checked="${me.notify}" aria-label="Уведомления"></button></div>
+    <div class="fine">${me.remembered ? 'Пароль хранится на сервере в зашифрованном виде, чтобы входить заново, когда сессия Дневник.ру истекает.' : 'Пароль не сохранён: когда сессия Дневник.ру истечёт, нужно будет войти снова.'}</div>
+    <button class="ghostbtn danger" id="unlink">Отключить Дневник.ру</button>
+    <div class="err" id="set-err" hidden></div>`);
+  $('#sheet').onclick = async e => {
+    if (e.target.closest('#syncNow')) return refresh(e.target.closest('#syncNow'));
+    const sw = e.target.closest('#notifySw');
+    if (sw){
+      me.notify = !me.notify; sw.classList.toggle('on', me.notify); sw.setAttribute('aria-checked', me.notify); haptic('select');
+      try { await api('/api/notify', { method:'POST', body:{ on: me.notify } }) } catch(err){ toast(err.message) }
+      return;
+    }
+    const ub = e.target.closest('#unlink');
+    if (ub){
+      if (!ub.dataset.confirm){ ub.dataset.confirm = '1'; ub.textContent = 'Точно отключить? Нажми ещё раз'; return }
+      try { await api('/api/unlink', { method:'POST' }); location.reload() } catch(err){ toast(err.message) }
+    }
+  };
+}
+$('#settingsBtn').addEventListener('click', openSettings);
+
+async function refresh(btn){
+  if (btn){ btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Обновляю…' }
+  try {
+    S.me = await api('/api/refresh', { method:'POST' });
+    S.loaded = []; await loadInitial(); renderAll(); closeSheet(); toast('Дневник обновлён');
+  } catch(err){
+    if (btn){ btn.disabled = false; btn.textContent = 'Обновить сейчас' }
+    toast(err.message);
+  }
+}
+
+/* ---------- Login ---------- */
+function showLogin(){
+  $('#tabs').classList.add('hide'); $('#settingsBtn').hidden = true;
+  let remember = true;
+  $('#views').innerHTML = `<div class="screen"><div class="login-card">
+    <div class="hero-mark">Edu<b>Plus</b></div>
+    <div class="sub" style="font-size:14px">Расписание, домашка и оценки из Дневник.ру — в одном красивом приложении.</div>
+    <form id="loginForm" novalidate>
+      <div class="field"><label for="lg">Логин Дневник.ру</label><input id="lg" autocomplete="username" autocapitalize="off" spellcheck="false" required></div>
+      <div class="field"><label for="pw">Пароль</label><input id="pw" type="password" autocomplete="current-password" required></div>
+      <button type="button" class="checkrow on" id="rem" aria-pressed="true"><span class="check"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Запомнить пароль (в зашифрованном виде), чтобы не входить заново, когда сессия истечёт</span></button>
+      <button class="primary" type="submit" id="lgBtn">Войти</button>
+      <div class="err" id="lgErr" hidden></div>
+    </form>
+    <div class="fine">Пароль уходит только на сервер EduPlus и оттуда — на login.dnevnik.ru. Вход через Госуслуги пока не поддерживается: задай логин и пароль в настройках Дневник.ру.</div>
+  </div></div>`;
+  $('#rem').onclick = () => { remember = !remember; $('#rem').classList.toggle('on', remember); $('#rem').setAttribute('aria-pressed', remember) };
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault();
+    const login = $('#lg').value.trim(), password = $('#pw').value;
+    const err = $('#lgErr'), btn = $('#lgBtn');
+    if (!login || !password){ err.textContent = 'Введи логин и пароль.'; err.hidden = false; return }
+    err.hidden = true; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Вхожу в Дневник.ру…';
+    const slow = setTimeout(() => { btn.innerHTML = '<span class="spinner"></span>Загружаю расписание и оценки…' }, 8000);
+    try {
+      S.me = await api('/api/link', { method:'POST', body:{ login, password, remember } });
+      clearTimeout(slow); haptic('medium'); location.reload();
+    } catch(ex){
+      clearTimeout(slow); btn.disabled = false; btn.textContent = 'Войти';
+      err.textContent = ex.message; err.hidden = false; haptic('heavy');
+    }
+  };
+}
+
+/* ---------- Sheet / toast / banner ---------- */
+function sheet(html, keep){
+  const el = $('#sheet'); const top = el.scrollTop;
+  el.innerHTML = `<div class="grip"></div>` + html; el.classList.add('on'); $('#scrim').classList.add('on');
+  if (keep) el.scrollTop = top;
+  try { tg?.BackButton?.show() } catch(e){}
+}
+function closeSheet(){
+  $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); $('#sheet').onclick = null;
+  try { tg?.BackButton?.hide() } catch(e){}
+}
+$('#scrim').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet() });
+try { tg?.BackButton?.onClick(closeSheet) } catch(e){}
+let tt; function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 2200) }
+function showBanner(){
+  const b = $('#banner');
+  if (MODE === 'api' && S.me?.sync_error){
+    b.className = 'banner'; b.hidden = false;
+    b.innerHTML = `<span>${esc(S.me.sync_error)}</span><button id="bannerBtn">${/войди/i.test(S.me.sync_error) ? 'Войти' : 'Повторить'}</button>`;
+    $('#bannerBtn').onclick = () => /войди/i.test(S.me.sync_error) ? api('/api/unlink', { method:'POST' }).then(() => location.reload()) : refresh();
+  } else b.hidden = true;
+}
+
+/* ---------- boot ---------- */
+function renderAll(){ renderToday(); renderCal(); renderGrades(); showBanner() }
+
+async function loadInitial(){
+  const q = S.me.quarter, t = TODAY;
+  const start = q.start < key(addDays(t, -7)) ? q.start : key(addDays(t, -7));
+  await loadRange(start, key(addDays(t, 28)));
+}
+
+function pickStartDay(){
+  if (lessonsOn(TODAY).length) return;
+  for (let i = 1; i < 4; i++) if (lessonsOn(addDays(TODAY, i)).length){ S.dayOffset = i; break }
+}
+
+async function boot(){
+  try { tg?.ready(); tg?.expand(); tg?.setHeaderColor?.('#0E1016'); tg?.setBackgroundColor?.('#0E1016'); tg?.disableVerticalSwipes?.() } catch(e){}
+  if (MODE === 'demo'){
+    $('#demoBadge').hidden = false; buildDemo(); pickStartDay(); renderAll(); return;
+  }
+  views.forEach(v => v.innerHTML = '');
+  $('#v-today').innerHTML = `<div class="lessons" style="margin-top:56px">${'<div class="skel"></div>'.repeat(5)}</div>`;
+  try {
+    S.me = await api('/api/me');
+    if (!S.me.linked) return showLogin();
+    await loadInitial(); pickStartDay(); renderAll();
+  } catch(err){
+    $('#v-today').innerHTML = `<div class="empty"><b>Не получилось загрузить</b>${esc(err.message)}<br><br><button class="addbtn" style="margin:0 auto" onclick="location.reload()">Попробовать снова</button></div>`;
+  }
+}
+boot();
+</script>
